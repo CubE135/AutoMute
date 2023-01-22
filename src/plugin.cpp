@@ -57,7 +57,7 @@ static char* pluginID = NULL;
 char pluginName[] = "AutoMute";
 char pluginDescription[] = "AutoMute will let you choose, if you want to join servers muted. It will automaticly mute your mic and your speakers when you join a server.";
 char pluginAuthor[] = "CubE";
-char pluginVersion[] = "1.1.6";
+char pluginVersion[] = "1.1.7";
 
 /* Custom Function Declarations */
 LPWSTR charToLPWSTR(char* text);
@@ -150,82 +150,25 @@ void ts3plugin_shutdown() {
 * Following functions are optional, if not needed you don't need to implement them.
 */
 
+/*
+ * If the plugin wants to use error return codes, plugin commands, hotkeys or menu items, it needs to register a command ID. This function will be
+ * automatically called after the plugin was initialized. This function is optional. If you don't use these features, this function can be omitted.
+ * Note the passed pluginID parameter is no longer valid after calling this function, so you must copy it and store it in the plugin.
+ */
 void ts3plugin_registerPluginID(const char* id) {
 	const size_t sz = strlen(id) + 1;
 	pluginID = (char*)malloc(sz * sizeof(char));
 	_strcpy(pluginID, sz, id);
 }
 
+/* Plugin command keyword. Return NULL or "" if not used. */
 const char* ts3plugin_commandKeyword() {
-	return "";
+	return NULL;
 }
 
-static void print_and_free_bookmarks_list(struct PluginBookmarkList* list)
-{
-	int i;
-	for (i = 0; i < list->itemcount; ++i) {
-		if (list->items[i].isFolder) {
-			printf("Folder: name=%s\n", list->items[i].name);
-			print_and_free_bookmarks_list(list->items[i].folder);
-			ts3Functions.freeMemory(list->items[i].name);
-		} else {
-			printf("Bookmark: name=%s uuid=%s\n", list->items[i].name, list->items[i].uuid);
-			ts3Functions.freeMemory(list->items[i].name);
-			ts3Functions.freeMemory(list->items[i].uuid);
-		}
-	}
-	ts3Functions.freeMemory(list);
-}
-
-int ts3plugin_processCommand(uint64 serverConnectionHandlerID, const char* command) {
-	char buf[COMMAND_BUFSIZE];
-	char *s, *param1 = NULL, *param2 = NULL;
-	int i = 0;
-	enum { CMD_NONE = 0, CMD_TEST } cmd = CMD_NONE;
-#ifdef _WIN32
-	char* context = NULL;
-#endif
-
-	printf("PLUGIN: process command: '%s'\n", command);
-
-	_strcpy(buf, COMMAND_BUFSIZE, command);
-#ifdef _WIN32
-	s = strtok_s(buf, " ", &context);
-#else
-	s = strtok(buf, " ");
-#endif
-	while (s != NULL) {
-		if (i == 0) {
-			if (!strcmp(s, "test")) {
-				cmd = CMD_TEST;
-			}
-		} else if (i == 1) {
-			param1 = s;
-		} else {
-			param2 = s;
-		}
-#ifdef _WIN32
-		s = strtok_s(NULL, " ", &context);
-#else
-		s = strtok(NULL, " ");
-#endif
-		i++;
-	}
-
-	switch (cmd) {
-	case CMD_NONE:
-		break;
-	}
-
-	return 0;  /* Plugin handled command */
-}
-
+/* Required to release the memory for parameter "data" allocated in ts3plugin_infoData and ts3plugin_initMenus */
 void ts3plugin_freeMemory(void* data) {
 	free(data);
-}
-
-int ts3plugin_requestAutoload() {
-	return 0;  /* 1 = request autoloaded, 0 = do not request autoload */
 }
 
 /* Helper function to create a menu item */
@@ -273,14 +216,19 @@ void ts3plugin_onConnectStatusChangeEvent(uint64 serverConnectionHandlerID, int 
 	if (newStatus == STATUS_CONNECTION_ESTABLISHED) {
 		refreshServerIdentifier(serverConnectionHandlerID);
 		bool always_mute = settings_ui->getConfigOption("always_mute").toBool();
+		bool mute_mic = settings_ui->getConfigOption("mute_mic").toBool();
+		bool mute_speaker = settings_ui->getConfigOption("mute_speaker").toBool();
 		QStringList list = settings_ui->getConfigOption("server_list").toStringList();
 
 		if (always_mute || list.filter(ts3_identifier).length() > 0) {
-			if (ts3Functions.setClientSelfVariableAsString(serverConnectionHandlerID, CLIENT_INPUT_MUTED, "1") != ERROR_ok) {
+			/* Microphone */
+			if (mute_mic && ts3Functions.setClientSelfVariableAsString(serverConnectionHandlerID, CLIENT_INPUT_MUTED, "1") != ERROR_ok) {
 				printf("Error setting client variable\n");
 				return;
 			}
-			if (ts3Functions.setClientSelfVariableAsString(serverConnectionHandlerID, CLIENT_OUTPUT_MUTED, "1") != ERROR_ok) {
+
+			/* Speakers */
+			if (mute_speaker && ts3Functions.setClientSelfVariableAsString(serverConnectionHandlerID, CLIENT_OUTPUT_MUTED, "1") != ERROR_ok) {
 				printf("Error setting client variable\n");
 				return;
 			}

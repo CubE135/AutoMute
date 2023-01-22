@@ -10,6 +10,10 @@ settings::settings(const QString& configLocation, QWidget* parent /* = nullprt *
 	m_ui->setupUi(this);
 	setFixedSize(size());
 
+	/* Initialize Settings */
+	initSettings();
+
+	/* Bind ClickEvents */
 	connect(m_ui->btn_cancel, &QPushButton::clicked, this, &QWidget::close);
 	connect(m_ui->btn_save_settings, &QPushButton::clicked, this, &settings::saveSettings);
 	connect(m_ui->btn_add_server_to_list, &QPushButton::clicked, this, &settings::addServerToList);
@@ -38,16 +42,41 @@ QVariant settings::getConfigOption(const QString& option) const {
 	return m_settings->value(option);
 }
 
+void settings::removeConfigOption(const QString& option) {
+	m_settings->remove(option);
+}
+
+void settings::initSettings() {
+	/* Initally set all settings values to true */
+	if (getConfigOption("always_mute").isNull()) {
+		setConfigOption("always_mute", true);
+	}
+	if (getConfigOption("mute_mic").isNull()) {
+		setConfigOption("mute_mic", true);
+	}
+	if (getConfigOption("mute_speaker").isNull()) {
+		setConfigOption("mute_speaker", true);
+	}
+}
+
 void settings::saveSettings() {
 	/* Always Mute */
 	setConfigOption("always_mute", m_ui->chk_always_mute->isChecked());
+
+	/* Mic or Speakers */
+	setConfigOption("mute_mic", m_ui->chk_mute_mic->isChecked());
+	setConfigOption("mute_speaker", m_ui->chk_mute_speakers->isChecked());
 
 	/* Server List */
 	QStringList listArray;
 	for (int i = 0; i < m_ui->lst_server_list->count(); i++) {
 		listArray.append(m_ui->lst_server_list->item(i)->text());
 	}
-	setConfigOption("server_list", listArray);
+	if (listArray.length() > 0) {
+		setConfigOption("server_list", listArray);
+	} else {
+		removeConfigOption("server_list");
+	}
 
 	/* Close Window */
 	close();
@@ -61,6 +90,10 @@ void settings::loadSettings() {
 		m_ui->btn_add_server_to_list->setEnabled(false);
 		m_ui->btn_remove_server_from_list->setEnabled(false);
 	}
+
+	/* Mic or Speakers */
+	m_ui->chk_mute_mic->setChecked(getConfigOption("mute_mic").toBool());
+	m_ui->chk_mute_speakers->setChecked(getConfigOption("mute_speaker").toBool());
 
 	/* Server List */
 	QStringList list = getConfigOption("server_list").toStringList();

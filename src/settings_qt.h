@@ -20,6 +20,7 @@ public:
 
 	void setConfigOption(const QString& option, const QVariant& value);
 	QVariant getConfigOption(const QString& option) const;
+	void removeConfigOption(const QString& option);
 
 protected:
 	void showEvent(QShowEvent* e) override;
@@ -31,6 +32,7 @@ private:
 	bool listWidgetItemExists(const QString& value);
 	void addServerToList();
 	void removeServerFromList();
+	void initSettings();
 	void saveSettings();
 	void loadSettings();
 };
